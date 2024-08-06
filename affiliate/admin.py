@@ -10,8 +10,6 @@ class AffiliateAdmin(admin.ModelAdmin):
 
     def affiliate_link(self, obj):
         return obj.create_link()
-    
-    affiliate_link.short_description = 'Affiliate Link'
 
 class SubmissionAdmin(ModelAdmin):
       list_display = ('name', 'email', 'phone', 'created_at','message')
