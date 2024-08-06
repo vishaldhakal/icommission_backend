@@ -7,6 +7,9 @@ class Affiliate(models.Model):
 
     def __str__(self):
         return self.name
+    
+    def create_link(self):
+        return f"http://icommission.ca/landing?ref={self.id}/"
 
 class Submission(models.Model):
     affiliate = models.ForeignKey(Affiliate, on_delete=models.SET_NULL, null=True)
