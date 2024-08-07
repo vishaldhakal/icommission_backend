@@ -4,6 +4,23 @@ from rest_framework.response import Response
 from .models import Affiliate, Submission
 from .serializers import SubmissionSerializer, AffiliateSerializer
 from django.db.models import Count
+from rest_framework import generics
+
+class AffiliateListCreate(generics.ListCreateAPIView):
+    queryset = Affiliate.objects.all()
+    serializer_class = AffiliateSerializer
+
+class AffiliateRetrieveUpdateDestroy(generics.RetrieveUpdateDestroyAPIView):
+    queryset = Affiliate.objects.all()
+    serializer_class = AffiliateSerializer
+
+class SubmissionListCreate(generics.ListCreateAPIView):
+    queryset = Submission.objects.all()
+    serializer_class = SubmissionSerializer
+
+class SubmissionRetrieveUpdateDestroy(generics.RetrieveUpdateDestroyAPIView):
+    queryset = Submission.objects.all()
+    serializer_class = SubmissionSerializer
 
 @api_view(['POST'])
 def submit_form(request):
