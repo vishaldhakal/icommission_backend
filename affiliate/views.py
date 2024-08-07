@@ -59,3 +59,14 @@ def all_submissions(request):
     submissions = Submission.objects.all()
     serializer = SubmissionSerializer(submissions, many=True)
     return Response(serializer.data)
+
+
+@api_view(['GET'])
+def get_affiliate_submissions(request, affiliate_id):
+    try:
+        affiliate = Affiliate.objects.get(id=affiliate_id)
+        submissions = Submission.objects.filter(affiliate=affiliate)
+        serializer = SubmissionSerializer(submissions, many=True)
+        return Response(serializer.data)
+    except Affiliate.DoesNotExist:
+        return Response({'error': 'Affiliate not found'}, status=status.HTTP_404_NOT_FOUND)
