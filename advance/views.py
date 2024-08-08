@@ -1,3 +1,11 @@
-from django.shortcuts import render
+from .models import CommissionAdvanceRequest
+from .serializers import CommissionAdvanceRequestSerializer
+from rest_framework import generics
+class CommissionAdvanceRequestListCreate(generics.ListCreateAPIView):
+      queryset = CommissionAdvanceRequest.objects.all()
+      serializer_class = CommissionAdvanceRequestSerializer
 
-# Create your views here.
+class CommissionAdvanceRequestDetail(generics.RetrieveUpdateDestroyAPIView):
+      queryset = CommissionAdvanceRequest.objects.all()
+      serializer_class = CommissionAdvanceRequestSerializer
+
