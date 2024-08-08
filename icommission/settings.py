@@ -33,8 +33,11 @@ INSTALLED_APPS = [
     'rest_framework',
     'affiliate',
     'advance',
+    'accounts',
     'corsheaders',
 ]
+
+AUTH_USER_MODEL = 'accounts.CustomUser'
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
