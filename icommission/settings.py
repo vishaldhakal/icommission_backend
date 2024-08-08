@@ -1,6 +1,7 @@
 
 from pathlib import Path
 from django.utils.translation import gettext_lazy as _
+from django.urls import reverse_lazy
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -163,7 +164,36 @@ UNFOLD = {
     "THEME": "light",
     "SIDEBAR": {
         "show_search": True,
-        "show_all_applications": True,
+        "show_all_applications": False,
         "navigation_expanded": True,
+        "navigation": [
+            {
+                "title": _("Admin"),
+                "separator": True,  # Top border
+                "collapsible": False,  # Collapsible group of links
+                "items": [
+                    {
+                        "title": _("Dashboard"),
+                        "icon": "dashboard", 
+                        "link": reverse_lazy("admin:index"),
+                    },
+                    {
+                        "title": _("Users"),
+                        "icon": "people",
+                        "link": reverse_lazy("admin:accounts_customuser_changelist"),
+                    },
+                    {
+                        "title": _("Submission"),
+                        "icon": "table",
+                        "link": reverse_lazy("admin:affiliate_submission_changelist"),
+                    },
+                    {
+                        "title": _("Commission Advance Request"),
+                        "icon": "money",
+                        "link": reverse_lazy("admin:advance_commissionadvancerequest_changelist"),
+                    },
+                ],
+            },
+        ],
     },
 }

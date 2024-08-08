@@ -11,5 +11,12 @@ class SubmissionAdmin(ModelAdmin):
       search_fields = ('name', 'email', 'phone')
 
 admin.site.register(Affiliate, AffiliateAdmin)
-admin.site.register(Submission, SubmissionAdmin)
+
+@admin.register(Submission)
+class SubmissionAdmin(ModelAdmin):
+   list_display = ('name', 'email', 'phone', 'created_at', 'message')
+   search_fields = ('created_at','affiliate')
+   list_filter = ('created_at','affiliate')
+   
+
 
