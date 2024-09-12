@@ -30,7 +30,7 @@ class Post(models.Model):
 class PostAdmin(ModelAdmin):
    fieldsets = (
          (None, {
-              'fields': (('title', 'category', 'thumbnail_image'), 'blog_content', 'tags',('meta_title', 'meta_description'))
+              'fields': (('title', 'category'),'thumbnail_image', 'blog_content', 'tags',('meta_title', 'meta_description'))
          }),
     )
    def formfield_for_dbfield(self, db_field, **kwargs):
