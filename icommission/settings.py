@@ -17,7 +17,11 @@ SECRET_KEY = 'django-insecure-&xgxnzmke#1=(kbji5ni=y_9*cs4jr#%vm1h=695w#m-wn07cp
 DEBUG = True
 
 ALLOWED_HOSTS = ['*']
+CORS_ALLOWED_ORIGINS = [
+    'http://localhost:3000', 
+]
 
+CORS_ALLOW_CREDENTIALS = True
 
 # Application definition
 
@@ -38,6 +42,7 @@ INSTALLED_APPS = [
     'accounts',
     'corsheaders',
     'blog',
+    'application'
 ]
 
 AUTH_USER_MODEL = 'accounts.CustomUser'
