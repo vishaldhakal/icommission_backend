@@ -1,11 +1,33 @@
 from rest_framework import serializers
-from .models import Application
+from .models import Application, Document, Note
+from accounts.serializers import UserSmallSerializer
+
+class NoteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Note
+        fields = ['id', 'note_type', 'content', 'created_at']
+
+class DocumentSerializer(serializers.ModelSerializer):
+    notes = NoteSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Document
+        fields = ['id', 'document_type', 'file', 'uploaded_at', 'notes', 'status']
 
 class ApplicationSerializer(serializers.ModelSerializer):
-    user = serializers.PrimaryKeyRelatedField(read_only=True)
+    documents = DocumentSerializer(many=True, read_only=True)
+    user = UserSmallSerializer(read_only=True)
 
     class Meta:
         model = Application
-        fields = ['id', 'user', 'name', 'broker_of_record', 'deal_admin_email', 'emergency_phone', 
-                  'upload_id', 'purchase_sale_agreement', 'mls_listing', 'submitted_at', 'status']
-        read_only_fields = ['id', 'user', 'submitted_at']
+        fields = [
+            'id', 'user', 'deal_administrator_name', 'deal_administrator_email',
+            'status', 'submitted_at', 'updated_at', 'transaction_type', 'transaction_address',
+            'total_commission_amount_requested', 'total_commission_amount_received', 'documents'
+        ]
+
+class ApplicationCreateSerializer(serializers.ModelSerializer):
+    documents = DocumentSerializer(many=True, read_only=True)
+    class Meta:
+        model = Application
+        fields = '__all__'

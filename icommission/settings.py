@@ -1,7 +1,7 @@
 
 from pathlib import Path
 from django.utils.translation import gettext_lazy as _
-from django.urls import reverse_lazy
+from datetime import timedelta
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -38,7 +38,6 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework_simplejwt',
     'affiliate',
-    'advance',
     'accounts',
     'corsheaders',
     'blog',
@@ -82,14 +81,14 @@ WSGI_APPLICATION = 'icommission.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
-"""
-DATABASES = {
+
+""" DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'db.sqlite3',
     }
-}
-"""
+} """
+
  
 DATABASES = {
     "default": {
@@ -174,35 +173,6 @@ UNFOLD = {
         "show_search": True,
         "show_all_applications": False,
         "navigation_expanded": True,
-        "navigation": [
-            {
-                "title": _("Admin"),
-                "separator": True,  # Top border
-                "collapsible": False,  # Collapsible group of links
-                "items": [
-                    {
-                        "title": _("Dashboard"),
-                        "icon": "dashboard", 
-                        "link": reverse_lazy("admin:index"),
-                    },
-                    {
-                        "title": _("Users"),
-                        "icon": "people",
-                        "link": reverse_lazy("admin:accounts_customuser_changelist"),
-                    },
-                    {
-                        "title": _("Submission"),
-                        "icon": "table",
-                        "link": reverse_lazy("admin:affiliate_submission_changelist"),
-                    },
-                    {
-                        "title": _("Commission Advance Request"),
-                        "icon": "money",
-                        "link": reverse_lazy("admin:advance_commissionadvancerequest_changelist"),
-                    },
-                ],
-            },
-        ],
     },
 }
 
@@ -246,4 +216,10 @@ TINYMCE_DEFAULT_CONFIG = {
         input.click();
     }""",
     "content_style": "body { font-family:Roboto,Helvetica,Arial,sans-serif; font-size:14px }",
+}
+
+
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(days=30),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
 }

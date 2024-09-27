@@ -1,7 +1,11 @@
 from django.urls import path
-from .views import ApplicationListCreateView, ApplicationRetrieveUpdateDestroyView
+from . import views
 
 urlpatterns = [
-    path('applications/', ApplicationListCreateView.as_view(), name='application-list-create'),
-    path('applications/<int:pk>/', ApplicationRetrieveUpdateDestroyView.as_view(), name='application-detail'),
+    path('applications/', views.ApplicationListCreate.as_view(), name='application-list-create'),
+    path('applications/<int:pk>/', views.ApplicationRetrieveUpdateDestroy.as_view(), name='application-detail'),
+    path('applications/<int:application_id>/documents/', views.DocumentListCreate.as_view(), name='document-list-create'),
+    path('documents/<int:pk>/', views.DocumentRetrieveUpdateDestroy.as_view(), name='document-detail'),
+    path('documents/<int:document_id>/notes/', views.NoteListCreate.as_view(), name='note-list-create'),
+    path('notes/<int:pk>/', views.NoteRetrieveUpdateDestroy.as_view(), name='note-detail'),
 ]

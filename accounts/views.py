@@ -1,43 +1,67 @@
 from rest_framework.response import Response
-from rest_framework.authtoken.views import ObtainAuthToken
-from rest_framework.authtoken.models import Token
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework import generics, permissions
 from rest_framework import status
-from rest_framework.permissions import IsAuthenticated
+from django.contrib.auth import get_user_model
 from rest_framework.decorators import (
     api_view,
-    permission_classes,
 )
-from rest_framework import generics
 from .serializers import UserSerializer
+from rest_framework.permissions import IsAuthenticated
 
-class CustomAuthToken(ObtainAuthToken):
+User = get_user_model()
+class UserRegistrationView(generics.CreateAPIView):
+    serializer_class = UserSerializer
+    permission_classes = [permissions.AllowAny]
+
     def post(self, request, *args, **kwargs):
-        serializer = self.serializer_class(
-            data=request.data, context={"request": request}
-        )
+        serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        user = serializer.validated_data["user"]
-        token, created = Token.objects.get_or_create(user=user)
+        user = serializer.save()
+        refresh = RefreshToken.for_user(user)
         return Response({
-            "token": token.key,
-            "user":{
-                'user': user.id,
-                'email': user.email,
-                'first_name': user.first_name,
-                'last_name': user.last_name,
-                'role': user.role
-            }   
-        },status=200)
-    
-@api_view(['POST'])
-def signup(request):
-    if request.method == 'POST':
-        serializer = UserSerializer(data=request.data)
-        if serializer.is_valid():
-            user = serializer.save()
-            if user:
-                token = Token.objects.create(user=user)
-                json = serializer.data
-                json['token'] = token.key
-                return Response(json, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            'user': UserSerializer(user).data,
+            'refresh': str(refresh),
+            'access': str(refresh.access_token),
+        }, status=status.HTTP_201_CREATED)
+
+#view for updating user profile
+class UserProfileUpdateView(generics.UpdateAPIView):
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+    permission_classes = [IsAuthenticated]
+
+    def update(self, request, *args, **kwargs):
+        user = request.user
+        # Only update specific fields
+        allowed_fields = [
+            'broker_of_record_email', 'broker_of_record_name', 'brokerage_phone',
+            'current_brokerage_name', 'driver_license', 'email',
+            'emergency_contact_name', 'emergency_contact_phone', 'first_name',
+            'last_name', 'license_number', 'phone_number', 'role'
+        ]
+        
+        # Update the user object with the allowed fields
+        for field in allowed_fields:
+            if field in request.data:
+                if field == 'driver_license':
+                    if request.FILES.get(field):
+                        user.driver_license = request.FILES[field]
+                    elif request.data[field] is None:
+                        user.driver_license = None
+                else:
+                    setattr(user, field, request.data[field])
+        
+        # Save the updated user object
+        user.save()
+
+        # Return the updated user object
+        return Response(UserSerializer(user).data, status=status.HTTP_200_OK)
+        
+
+@api_view(['GET'])
+def profile(request):
+    if request.method == 'GET':
+        user = request.user
+        serializer = UserSerializer(user)
+        return Response(serializer.data, status=status.HTTP_200_OK)
