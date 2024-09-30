@@ -25,6 +25,11 @@ class ApplicationListCreate(generics.ListCreateAPIView):
         else:
             return Application.objects.none()
     
+    def list(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+        serializer = ApplicationSerializer(queryset, many=True)
+        return Response(serializer.data)
+    
     def create(self, request, *args, **kwargs):
         data = request.data
         user = request.user
