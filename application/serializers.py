@@ -21,7 +21,7 @@ class ApplicationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Application
         fields = [
-            'id', 'user', 'deal_administrator_name', 'deal_administrator_email',
+            'id', 'user', 'deal_administrator_name', 'deal_administrator_email','closing_date',
             'status', 'submitted_at', 'updated_at', 'transaction_type', 'transaction_address',
             'total_commission_amount_requested', 'total_commission_amount_received', 'documents'
         ]
