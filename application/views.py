@@ -3,18 +3,25 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.contrib.auth import get_user_model
 from django.core.mail import send_mail
+from rest_framework.pagination import PageNumberPagination
 from django.conf import settings
 import random
 import string
 from .models import Application, Document, Note
-from .serializers import ApplicationSerializer, DocumentSerializer, NoteSerializer, ApplicationCreateSerializer
+from .serializers import ApplicationSerializer, DocumentSerializer, NoteSerializer, ApplicationCreateSerializer, ApplicationListSerializer
 
 User = get_user_model()
+
+class CustomPageNumberPagination(PageNumberPagination):
+    page_size = 10
+    page_size_query_param = 'page_size'
+    max_page_size = 100
 
 class ApplicationListCreate(generics.ListCreateAPIView):
     queryset = Application.objects.all()
     serializer_class = ApplicationCreateSerializer
     permission_classes = [IsAuthenticated]
+    pagination_class = CustomPageNumberPagination
 
     def get_queryset(self):
         user = self.request.user
@@ -27,7 +34,11 @@ class ApplicationListCreate(generics.ListCreateAPIView):
     
     def list(self, request, *args, **kwargs):
         queryset = self.get_queryset()
-        serializer = ApplicationSerializer(queryset, many=True)
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = ApplicationListSerializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        serializer = ApplicationListSerializer(queryset, many=True)
         return Response(serializer.data)
     
     def create(self, request, *args, **kwargs):

@@ -30,6 +30,7 @@ class Application(models.Model):
     closing_date = models.DateField(null=True, blank=True)
     transaction_type = models.CharField(max_length=20, choices=TRANSACTION_TYPES, default='Purchase')
     transaction_address = models.CharField(max_length=255, null=True, blank=True)
+    deal_commission_amount = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     total_commission_amount_requested = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     total_commission_amount_received = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     def __str__(self):
