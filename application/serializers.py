@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from .models import Application, Document, Note
-from accounts.serializers import UserSmallestSerializer
+from accounts.serializers import UserSmallestSerializer, UserSmallSerializer
 
 class NoteSerializer(serializers.ModelSerializer):
     class Meta:
@@ -16,7 +16,7 @@ class DocumentSerializer(serializers.ModelSerializer):
 
 class ApplicationSerializer(serializers.ModelSerializer):
     documents = DocumentSerializer(many=True, read_only=True)
-    user = UserSmallestSerializer(read_only=True)
+    user = UserSmallSerializer(read_only=True)
 
     class Meta:
         model = Application
