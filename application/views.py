@@ -25,12 +25,18 @@ class ApplicationListCreate(generics.ListCreateAPIView):
 
     def get_queryset(self):
         user = self.request.user
-        if user.role == 'Admin':
-            return Application.objects.all()
-        elif user.role == 'Agent':
-            return Application.objects.filter(user=user)
-        else:
-            return Application.objects.none()
+        queryset = Application.objects.all() if user.role == 'Admin' else Application.objects.filter(user=user) if user.role == 'Agent' else Application.objects.none()
+
+        # Filter by closing date
+        closing_date_from = self.request.query_params.get('closing_date_from')
+        closing_date_to = self.request.query_params.get('closing_date_to')
+
+        if closing_date_from:
+            queryset = queryset.filter(closing_date__gte=closing_date_from)
+        if closing_date_to:
+            queryset = queryset.filter(closing_date__lte=closing_date_to)
+
+        return queryset
     
     def list(self, request, *args, **kwargs):
         queryset = self.get_queryset()
@@ -51,8 +57,6 @@ class ApplicationListCreate(generics.ListCreateAPIView):
         headers = self.get_success_headers(serializer.data)
         documents = data.pop('documents')
         document_types = data.pop('document_types')
-        print(documents)
-        print(document_types)
         application = Application.objects.get(pk=serializer.data['id'])
         for index, document in enumerate(documents):
             Document.objects.create(application=application, file=document, document_type=document_types[index])
