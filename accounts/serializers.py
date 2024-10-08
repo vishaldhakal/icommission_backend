@@ -14,7 +14,7 @@ class UserSmallSerializer(serializers.ModelSerializer):
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomUser
-        fields = ['username', 'email', 'password', 'first_name', 'last_name', 'role', 'phone_number', 'license_number', 'current_brokerage_name', 'brokerage_phone', 'broker_of_record_name', 'broker_of_record_email', 'emergency_contact_name', 'emergency_contact_phone', 'driver_license']
+        fields = ['username', 'email', 'password', 'first_name', 'last_name', 'role', 'phone_number', 'license_number', 'current_brokerage_name', 'brokerage_phone', 'broker_of_record_name', 'broker_of_record_email', 'emergency_contact_name', 'emergency_contact_phone', 'driver_license','deal_administrator_name', 'deal_administrator_email']
         extra_kwargs = {'password': {'write_only': True}}
 
     def create(self, validated_data):
