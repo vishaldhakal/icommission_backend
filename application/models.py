@@ -6,33 +6,36 @@ User = get_user_model()
 
 class Application(models.Model):
     STATUS_CHOICES = [
-        ('Pending', 'Pending'),
-        ('Approved', 'Approved'),
-        ('Contracted', 'Contracted'),
-        ('Funded', 'Funded'),
         ('Open', 'Open'),
         ('Closed', 'Closed'),
-        ('Overdue', 'Overdue'),
     ]
 
     TRANSACTION_TYPES = [
-        ('Purchase', 'Purchase'),
-        ('Sale', 'Sale'),
-        ('Refinance', 'Refinance'),
+        ('Resale', 'Resale'),
+        ('Commercial', 'Commercial'),
+        ('Pre-construction', 'Pre-construction'),
+        ('Lease', 'Lease'),
+    ]
+
+    TRANSACTIONS= [
+        ('Single', 'Single'),
+        ('Multiple', 'Multiple'),
     ]
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='applications')
-    deal_administrator_name = models.CharField(max_length=100, null=True, blank=True)
-    deal_administrator_email = models.EmailField(null=True, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='Pending')
     submitted_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    closing_date = models.DateField(null=True, blank=True)
     transaction_type = models.CharField(max_length=20, choices=TRANSACTION_TYPES, default='Purchase')
     transaction_address = models.CharField(max_length=255, null=True, blank=True)
     deal_commission_amount = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
-    total_commission_amount_requested = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
-    total_commission_amount_received = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    purchase_commission_amount = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    advance_payout_amount = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    discount_fee_amount = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    advance_date = models.DateField(null=True, blank=True)
+    closing_date = models.DateField(null=True, blank=True)
+    transaction_count = models.CharField(max_length=20, choices=TRANSACTIONS, default='Single')
+
     def __str__(self):
         return f"Application for {self.user.first_name} {self.user.last_name}"
 

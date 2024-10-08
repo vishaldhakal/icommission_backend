@@ -17,9 +17,11 @@ class CustomUser(AbstractUser):
     brokerage_phone = models.CharField(max_length=100, null=True, blank=True)
     broker_of_record_name = models.CharField(max_length=100, null=True, blank=True)
     broker_of_record_email = models.CharField(max_length=100, null=True, blank=True)
+    deal_administrator_name = models.CharField(max_length=100, null=True, blank=True)
+    deal_administrator_email = models.EmailField(null=True, blank=True)
     emergency_contact_name = models.CharField(max_length=100, null=True, blank=True)
     emergency_contact_phone = models.CharField(max_length=100, null=True, blank=True)
-    driver_license = models.ImageField(upload_to='driver_licenses', null=True, blank=True)
+    driver_license = models.FileField(upload_to='driver_licenses', null=True, blank=True)
 
     def __str__(self):
         return self.username

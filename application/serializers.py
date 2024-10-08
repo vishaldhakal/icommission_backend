@@ -21,22 +21,26 @@ class ApplicationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Application
         fields = [
-            'id', 'user', 'deal_administrator_name', 'deal_administrator_email','closing_date',
-            'status', 'submitted_at', 'updated_at', 'transaction_type', 'transaction_address',
-            'deal_commission_amount', 'total_commission_amount_requested', 'total_commission_amount_received', 'documents'
+            'id', 'user', 'status', 'submitted_at', 'updated_at', 'transaction_type',
+            'transaction_address', 'deal_commission_amount', 'purchase_commission_amount',
+            'advance_payout_amount', 'discount_fee_amount', 'advance_date', 'closing_date',
+            'documents'
         ]
+
 class ApplicationListSerializer(serializers.ModelSerializer):
     user = UserSmallestSerializer(read_only=True)
 
     class Meta:
         model = Application
         fields = [
-            'id', 'user','closing_date','status', 'submitted_at', 'updated_at', 'transaction_type', 'transaction_address',
-            'deal_commission_amount','total_commission_amount_requested', 'total_commission_amount_received'
+            'id', 'user', 'closing_date', 'status', 'submitted_at', 'updated_at',
+            'transaction_type', 'transaction_address', 'deal_commission_amount',
+            'purchase_commission_amount', 'advance_payout_amount','advance_date', 'transaction_count','discount_fee_amount'
         ]
 
 class ApplicationCreateSerializer(serializers.ModelSerializer):
     documents = DocumentSerializer(many=True, read_only=True)
+    
     class Meta:
         model = Application
         fields = '__all__'

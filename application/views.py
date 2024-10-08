@@ -55,8 +55,8 @@ class ApplicationListCreate(generics.ListCreateAPIView):
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
         headers = self.get_success_headers(serializer.data)
-        documents = data.pop('documents')
-        document_types = data.pop('document_types')
+        documents = data.pop('documents', [])
+        document_types = data.pop('document_types', [])
         application = Application.objects.get(pk=serializer.data['id'])
         for index, document in enumerate(documents):
             Document.objects.create(application=application, file=document, document_type=document_types[index])

@@ -38,7 +38,7 @@ class UserProfileUpdateView(generics.UpdateAPIView):
             'broker_of_record_email', 'broker_of_record_name', 'brokerage_phone',
             'current_brokerage_name', 'driver_license', 'email',
             'emergency_contact_name', 'emergency_contact_phone', 'first_name',
-            'last_name', 'license_number', 'phone_number', 'role'
+            'last_name', 'license_number', 'phone_number', 'role', 'deal_administrator_name', 'deal_administrator_email'
         ]
         
         # Update the user object with the allowed fields
