@@ -6,8 +6,13 @@ User = get_user_model()
 
 class Application(models.Model):
     STATUS_CHOICES = [
+        ('Pending', 'Pending'),
+        ('Approved', 'Approved'),
+        ('Contracted', 'Contracted'),
+        ('Funded', 'Funded'),
         ('Open', 'Open'),
         ('Closed', 'Closed'),
+        ('Overdue', 'Overdue'),
     ]
 
     TRANSACTION_TYPES = [
