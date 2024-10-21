@@ -9,12 +9,12 @@ class UserSmallestSerializer(serializers.ModelSerializer):
 class UserSmallSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomUser
-        fields = ['id', 'first_name', 'last_name', 'email', 'role', 'phone_number', 'license_number', 'current_brokerage_name', 'brokerage_phone', 'broker_of_record_name', 'broker_of_record_email', 'emergency_contact_name', 'emergency_contact_phone', 'driver_license','deal_administrator_name', 'deal_administrator_email']
+        fields = ['id', 'first_name', 'last_name', 'email', 'role', 'phone_number', 'license_number', 'current_brokerage_name', 'brokerage_phone', 'broker_of_record_name', 'broker_of_record_email', 'emergency_contact_name', 'emergency_contact_phone', 'driver_license','deal_administrator_name', 'deal_administrator_email', 't4a']
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomUser
-        fields = ['username', 'email', 'password', 'first_name', 'last_name', 'role', 'phone_number', 'license_number', 'current_brokerage_name', 'brokerage_phone', 'broker_of_record_name', 'broker_of_record_email', 'emergency_contact_name', 'emergency_contact_phone', 'driver_license','deal_administrator_name', 'deal_administrator_email']
+        fields = ['username', 'email', 'password', 'first_name', 'last_name', 'role', 'phone_number', 'license_number', 'current_brokerage_name', 'brokerage_phone', 'broker_of_record_name', 'broker_of_record_email', 'emergency_contact_name', 'emergency_contact_phone', 'driver_license','deal_administrator_name', 'deal_administrator_email', 't4a', 'void_cheque_or_direct_doposite_form', 'annual_commission_statement', 'deposit_cheque_or_receipt']
         extra_kwargs = {'password': {'write_only': True}}
 
     def create(self, validated_data):
@@ -33,7 +33,9 @@ class CustomUserSerializer(serializers.ModelSerializer):
         fields = ['id', 'username', 'email', 'role', 'phone_number', 'license_number',
                   'current_brokerage_name', 'brokerage_phone', 'broker_of_record_name',
                   'broker_of_record_email', 'deal_administrator_name', 'deal_administrator_email',
-                  'emergency_contact_name', 'emergency_contact_phone', 'driver_license']
+                  'emergency_contact_name', 'emergency_contact_phone', 'driver_license',
+                  't4a', 'void_cheque_or_direct_doposite_form', 'annual_commission_statement',
+                  'deposit_cheque_or_receipt']
         extra_kwargs = {'password': {'write_only': True}}
 
     def create(self, validated_data):

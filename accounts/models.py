@@ -22,6 +22,11 @@ class CustomUser(AbstractUser):
     emergency_contact_name = models.CharField(max_length=100, null=True, blank=True)
     emergency_contact_phone = models.CharField(max_length=100, null=True, blank=True)
     driver_license = models.FileField(upload_to='driver_licenses', null=True, blank=True)
+    t4a = models.FileField(upload_to='t4a_licenses', null=True, blank=True)
+    void_cheque_or_direct_doposite_form = models.FileField(upload_to='void_cheque_or_direct_doposite_forms', null=True, blank=True)
+    annual_commission_statement = models.FileField(upload_to='annual_commission_statements', null=True, blank=True)
+    deposit_cheque_or_receipt = models.FileField(upload_to='deposit_cheque_or_receipts', null=True, blank=True)
+
 
     def __str__(self):
         return self.username

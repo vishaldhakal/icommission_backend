@@ -36,6 +36,7 @@ class Application(models.Model):
     deal_commission_amount = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     purchase_commission_amount = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     advance_payout_amount = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    commission_amount_requested = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     discount_fee_amount = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     advance_date = models.DateField(null=True, blank=True)
     closing_date = models.DateField(null=True, blank=True)
@@ -46,6 +47,19 @@ class Application(models.Model):
 
     class Meta:
         ordering = ['-submitted_at']
+
+class ApplicationComment(models.Model):
+    COMMENT_TYPES = [
+        ('Internal', 'Internal'),
+        ('External', 'External'),
+    ]
+    application = models.ForeignKey(Application, on_delete=models.CASCADE, related_name='comments')
+    comment = models.TextField(default='')
+    comment_type = models.CharField(max_length=20, choices=COMMENT_TYPES, default='Internal')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.get_comment_type_display()} comment for {self.application}"
 
 class Document(models.Model):
     DOCUMENT_TYPES = [

@@ -7,8 +7,8 @@ from rest_framework.pagination import PageNumberPagination
 from django.conf import settings
 import random
 import string
-from .models import Application, Document, Note
-from .serializers import ApplicationSerializer, DocumentSerializer, NoteSerializer, ApplicationCreateSerializer, ApplicationListSerializer
+from .models import Application, Document, Note, ApplicationComment
+from .serializers import ApplicationSerializer, DocumentSerializer, NoteSerializer, ApplicationCreateSerializer, ApplicationListSerializer, ApplicationCommentSerializer
 
 User = get_user_model()
 
@@ -95,3 +95,17 @@ class NoteListCreate(generics.ListCreateAPIView):
 class NoteRetrieveUpdateDestroy(generics.RetrieveUpdateDestroyAPIView):
     queryset = Note.objects.all()
     serializer_class = NoteSerializer
+
+class ApplicationCommentListCreate(generics.ListCreateAPIView):
+    serializer_class = ApplicationCommentSerializer
+
+    def get_queryset(self):
+        return ApplicationComment.objects.filter(application_id=self.kwargs['application_id'])
+    
+    def perform_create(self, serializer):
+        application = Application.objects.get(pk=self.kwargs['application_id'])
+        serializer.save(application=application)
+
+class ApplicationCommentRetrieveUpdateDestroy(generics.RetrieveUpdateDestroyAPIView):
+    queryset = ApplicationComment.objects.all()
+    serializer_class = ApplicationCommentSerializer

@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Application, Document, Note
+from .models import Application, Document, Note, ApplicationComment
 from accounts.serializers import UserSmallestSerializer, UserSmallSerializer
 
 class NoteSerializer(serializers.ModelSerializer):
@@ -44,3 +44,8 @@ class ApplicationCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Application
         fields = '__all__'
+
+class ApplicationCommentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ApplicationComment
+        fields = ['id', 'comment', 'comment_type', 'created_at']
