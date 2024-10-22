@@ -73,6 +73,13 @@ class Document(models.Model):
         ('Waivers of Conditions', 'Waivers of Conditions'),
         ('Trade Record Sheet', 'Trade Record Sheet'),
         ('Deposit Cheque/Receipt', 'Deposit Cheque/Receipt'),
+        ('Exclusive Listing Agreement or Confirmation of Cooperation', 'Exclusive Listing Agreement or Confirmation of Cooperation'),
+        ("Signed Broker Referral with Payment Schedule", "Signed Broker Referral with Payment Schedule"),
+        ("Receiving/Referral Agreement (if applicable)", "Receiving/Referral Agreement (if applicable)"),
+        ("Signed Buyer Rep/RECO Info Guide (if direct deal)", "Signed Buyer Rep/RECO Info Guide (if direct deal)"),
+        ("Signed Trade Record Sheet & Pending Trade Report", "Signed Trade Record Sheet & Pending Trade Report"),
+        ("Mortgage Pre-approval", "Mortgage Pre-approval"),
+        ("Developer's Email Confirmation", "Developer's Email Confirmation"),
         ('Other', 'Other'),
     ]
 
@@ -83,7 +90,7 @@ class Document(models.Model):
     ]
 
     application = models.ForeignKey(Application, on_delete=models.CASCADE, related_name='documents')
-    document_type = models.CharField(max_length=50, choices=DOCUMENT_TYPES)
+    document_type = models.CharField(max_length=500, choices=DOCUMENT_TYPES)
     status = models.CharField(max_length=20, choices=DOCUMENT_STATUS, default='Pending')
     file = models.FileField(
         upload_to='documents/',
