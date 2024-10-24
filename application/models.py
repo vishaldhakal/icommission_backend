@@ -1,6 +1,9 @@
 from django.db import models
 from django.core.validators import FileExtensionValidator
 from django.contrib.auth import get_user_model
+from django.contrib.contenttypes.fields import GenericForeignKey
+from django.contrib.contenttypes.models import ContentType
+from django.utils import timezone
 
 User = get_user_model()
 
@@ -42,8 +45,57 @@ class Application(models.Model):
     closing_date = models.DateField(null=True, blank=True)
     transaction_count = models.CharField(max_length=20, choices=TRANSACTIONS, default='Single')
 
+    approved_version = models.ForeignKey('ChangeRequest', null=True, blank=True, on_delete=models.SET_NULL, related_name='current_application')
+
     def __str__(self):
         return f"Application for {self.user.first_name} {self.user.last_name}"
+
+    def save(self, *args, **kwargs):
+        if not self.pk:
+            super().save(*args, **kwargs)
+        else:
+            changes = self.get_changes()
+            if changes:
+                ChangeRequest.objects.create(
+                    content_type=ContentType.objects.get_for_model(self),
+                    object_id=self.pk,
+                    changes=changes
+                )
+
+    def get_changes(self):
+        if not self.pk:
+            return {}
+        old_instance = Application.objects.get(pk=self.pk)
+        changes = {}
+        for field in self._meta.fields:
+            if getattr(self, field.name) != getattr(old_instance, field.name):
+                changes[field.name] = getattr(self, field.name)
+        return changes
+
+    def get_pending_changes(self):
+        return ChangeRequest.objects.filter(
+            content_type=ContentType.objects.get_for_model(self),
+            object_id=self.pk,
+            status='Pending'
+        )
+
+    def approve_changes(self, change_request):
+        if change_request.content_type == ContentType.objects.get_for_model(self) and change_request.object_id == self.pk:
+            for field, value in change_request.changes.items():
+                setattr(self, field, value)
+            self.approved_version = change_request
+            super().save()
+            change_request.status = 'Approved'
+            change_request.approved_at = timezone.now()
+            change_request.save()
+            
+            # Reject other pending change requests
+            self.get_pending_changes().exclude(pk=change_request.pk).update(status='Rejected')
+
+    def reject_changes(self, change_request):
+        if change_request.content_type == ContentType.objects.get_for_model(self) and change_request.object_id == self.pk:
+            change_request.status = 'Rejected'
+            change_request.save()
 
     class Meta:
         ordering = ['-submitted_at']
@@ -99,7 +151,7 @@ class Document(models.Model):
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"{self.get_document_type_display()} for {self.application.user.first_name} {self.application.user.last_name}"
+        return f"{self.document_type} for {self.application}"
 
     class Meta:
         ordering = ['-uploaded_at']
@@ -117,6 +169,30 @@ class Note(models.Model):
 
     def __str__(self):
         return f"{self.get_note_type_display()} note for {self.document}"
+
+    class Meta:
+        ordering = ['-created_at']
+
+class ChangeRequest(models.Model):
+    STATUS_CHOICES = [
+        ('Pending', 'Pending'),
+        ('Approved', 'Approved'),
+        ('Rejected', 'Rejected'),
+    ]
+
+    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
+    object_id = models.PositiveIntegerField()
+    content_object = GenericForeignKey('content_type', 'object_id')
+    
+    changes = models.JSONField()
+    created_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='change_requests_created')
+    created_at = models.DateTimeField(auto_now_add=True)
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='Pending')
+    approved_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='change_requests_approved')
+    approved_at = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self):
+        return f"Change request for {self.content_object} - {self.get_status_display()}"
 
     class Meta:
         ordering = ['-created_at']

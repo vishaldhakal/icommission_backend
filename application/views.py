@@ -2,13 +2,18 @@ from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.contrib.auth import get_user_model
-from django.core.mail import send_mail
 from rest_framework.pagination import PageNumberPagination
 from django.conf import settings
 import random
 import string
-from .models import Application, Document, Note, ApplicationComment
-from .serializers import ApplicationSerializer, DocumentSerializer, NoteSerializer, ApplicationCreateSerializer, ApplicationListSerializer, ApplicationCommentSerializer
+from .models import Application, Document, Note, ApplicationComment, ChangeRequest
+from .serializers import (
+    ApplicationSerializer, DocumentSerializer, NoteSerializer, 
+    ApplicationCreateSerializer, ApplicationListSerializer, 
+    ApplicationCommentSerializer, ChangeRequestSerializer
+)
+from django.contrib.contenttypes.models import ContentType
+from decimal import Decimal
 
 User = get_user_model()
 
@@ -63,10 +68,35 @@ class ApplicationListCreate(generics.ListCreateAPIView):
             
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
-
 class ApplicationRetrieveUpdateDestroy(generics.RetrieveUpdateDestroyAPIView):
     queryset = Application.objects.all()
     serializer_class = ApplicationSerializer
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        
+        # Instead of saving directly, create a ChangeRequest
+        changes = {}
+        for field, value in serializer.validated_data.items():
+            old_value = getattr(instance, field)
+            if isinstance(old_value, Decimal):
+                if old_value.compare(Decimal(str(value))) != 0:
+                    changes[field] = str(value)
+            elif old_value != value:
+                changes[field] = value if not isinstance(value, Decimal) else str(value)
+        
+        if changes:
+            ChangeRequest.objects.create(
+                content_object=instance,
+                changes=changes,
+                created_by=request.user
+            )
+            return Response({"message": "Change request created successfully."}, status=status.HTTP_202_ACCEPTED)
+        
+        return Response({"message": "No changes detected."}, status=status.HTTP_200_OK)
 
 class DocumentListCreate(generics.ListCreateAPIView):
     serializer_class = DocumentSerializer
@@ -82,6 +112,7 @@ class DocumentRetrieveUpdateDestroy(generics.RetrieveUpdateDestroyAPIView):
     queryset = Document.objects.all()
     serializer_class = DocumentSerializer
 
+    
 class NoteListCreate(generics.ListCreateAPIView):
     serializer_class = NoteSerializer
 
@@ -109,3 +140,68 @@ class ApplicationCommentListCreate(generics.ListCreateAPIView):
 class ApplicationCommentRetrieveUpdateDestroy(generics.RetrieveUpdateDestroyAPIView):
     queryset = ApplicationComment.objects.all()
     serializer_class = ApplicationCommentSerializer
+
+class ChangeRequestListCreate(generics.ListCreateAPIView):
+    serializer_class = ChangeRequestSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.role == 'Admin':
+            # For admin, show requests made by users (non-admin)
+            return ChangeRequest.objects.filter(status='Pending', created_by__role='Agent')
+        else:
+            # For non-admin users, show requests made by admin
+            return ChangeRequest.objects.filter(status='Pending', created_by__role='Admin')
+
+class ChangeRequestApprove(generics.UpdateAPIView):
+    queryset = ChangeRequest.objects.all()
+    serializer_class = ChangeRequestSerializer
+    permission_classes = [IsAuthenticated]
+
+    def update(self, request, *args, **kwargs):
+        change_request = self.get_object()
+        content_object = change_request.content_object
+
+        if isinstance(content_object, Application):
+            content_object.approve_changes(change_request)
+        elif isinstance(content_object, Document):
+            content_object.approve_changes(change_request)
+
+        return Response({"message": "Changes approved successfully."}, status=status.HTTP_200_OK)
+
+class ChangeRequestReject(generics.UpdateAPIView):
+    queryset = ChangeRequest.objects.all()
+    serializer_class = ChangeRequestSerializer
+    permission_classes = [IsAuthenticated]
+
+    def update(self, request, *args, **kwargs):
+        change_request = self.get_object()
+        content_object = change_request.content_object
+
+        if isinstance(content_object, Application):
+            content_object.reject_changes(change_request)
+        elif isinstance(content_object, Document):
+            content_object.reject_changes(change_request)
+
+        return Response({"message": "Changes rejected successfully."}, status=status.HTTP_200_OK)
+
+class ApplicationChangeRequestList(generics.ListAPIView):
+    serializer_class = ChangeRequestSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        application_id = self.kwargs['application_id']
+        user = self.request.user
+        base_queryset = ChangeRequest.objects.filter(
+            content_type=ContentType.objects.get_for_model(Application),
+            object_id=application_id,
+            status='Pending'
+        )
+
+        if user.role == 'Admin':
+            # For admin, show requests made by users (non-admin)
+            return base_queryset.filter(created_by__role='Agent')
+        else:
+            # For non-admin users, show requests made by admin
+            return base_queryset.filter(created_by__role='Admin')

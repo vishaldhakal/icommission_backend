@@ -1,7 +1,7 @@
-
 from pathlib import Path
 from django.utils.translation import gettext_lazy as _
 from datetime import timedelta
+from .utils import DecimalEncoder
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -90,7 +90,6 @@ WSGI_APPLICATION = 'icommission.wsgi.application'
     }
 } """
 
- 
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql_psycopg2",
@@ -156,7 +155,12 @@ REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
        'rest_framework_simplejwt.authentication.JWTAuthentication',
     ],
-    'PAGE_SIZE': 100
+    'PAGE_SIZE': 100,
+    'DEFAULT_RENDERER_CLASSES': [
+        'rest_framework.renderers.JSONRenderer',
+        'rest_framework.renderers.BrowsableAPIRenderer',
+    ],
+    'JSON_ENCODER': DecimalEncoder,
 }
 
 X_FRAME_OPTIONS = 'SAMEORIGIN'
