@@ -45,10 +45,23 @@ class ApplicationSerializer(serializers.ModelSerializer):
 
     def to_representation(self, instance):
         representation = super().to_representation(instance)
-        decimal_fields = ['deal_commission_amount', 'purchase_commission_amount', 'advance_payout_amount', 'discount_fee_amount', 'commission_amount_requested']
+        # Handle decimal fields
+        decimal_fields = ['deal_commission_amount', 'purchase_commission_amount', 
+                         'advance_payout_amount', 'discount_fee_amount', 
+                         'commission_amount_requested']
         for field in decimal_fields:
-            if representation[field] is not None:
+            if representation.get(field) is not None:
                 representation[field] = str(representation[field])
+        
+        # Handle date fields
+        date_fields = ['advance_date', 'closing_date']
+        for field in date_fields:
+            value = getattr(instance, field)
+            if value is not None:
+                representation[field] = value.isoformat()
+            else:
+                representation[field] = None
+                
         return representation
 
 class ApplicationListSerializer(serializers.ModelSerializer):
@@ -57,7 +70,7 @@ class ApplicationListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Application
         fields = [
-            'id', 'user', 'closing_date', 'status', 'submitted_at', 'updated_at',
+            'id', 'user','closing_date', 'status', 'submitted_at', 'updated_at',
             'transaction_type', 'transaction_address', 'deal_commission_amount',
             'purchase_commission_amount', 'advance_payout_amount', 'advance_date', 
             'transaction_count', 'discount_fee_amount', 'commission_amount_requested'

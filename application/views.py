@@ -78,13 +78,33 @@ class ApplicationRetrieveUpdateDestroy(generics.RetrieveUpdateDestroyAPIView):
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
         
-        # Instead of saving directly, create a ChangeRequest
+        # Check if status has changed
+        status_changed = False
+        if 'status' in serializer.validated_data:
+            old_status = instance.status
+            new_status = serializer.validated_data['status']
+            if old_status != new_status:
+                status_changed = True
+                instance.status = new_status
+                instance.save(update_fields=['status'])
+        
+        # Handle other fields through ChangeRequest
         changes = {}
         for field, value in serializer.validated_data.items():
+            if field == 'status':
+                continue
+                
             old_value = getattr(instance, field)
-            if isinstance(old_value, Decimal):
+            
+            # Handle date fields
+            if hasattr(old_value, 'isoformat') or old_value is None:
+                if old_value != value:
+                    changes[field] = value.isoformat()
+            # Handle Decimal fields
+            elif isinstance(old_value, Decimal):
                 if old_value.compare(Decimal(str(value))) != 0:
                     changes[field] = str(value)
+            # Handle other fields
             elif old_value != value:
                 changes[field] = value if not isinstance(value, Decimal) else str(value)
         
@@ -94,9 +114,22 @@ class ApplicationRetrieveUpdateDestroy(generics.RetrieveUpdateDestroyAPIView):
                 changes=changes,
                 created_by=request.user
             )
-            return Response({"message": "Change request created successfully."}, status=status.HTTP_202_ACCEPTED)
+            if status_changed:
+                return Response({
+                    "message": "Status updated and change request created successfully."
+                }, status=status.HTTP_202_ACCEPTED)
+            return Response({
+                "message": "Change request created successfully."
+            }, status=status.HTTP_202_ACCEPTED)
         
-        return Response({"message": "No changes detected."}, status=status.HTTP_200_OK)
+        if status_changed:
+            return Response({
+                "message": "Status updated successfully."
+            }, status=status.HTTP_200_OK)
+            
+        return Response({
+            "message": "No changes detected."
+        }, status=status.HTTP_200_OK)
 
 class DocumentListCreate(generics.ListCreateAPIView):
     serializer_class = DocumentSerializer
@@ -199,9 +232,11 @@ class ApplicationChangeRequestList(generics.ListAPIView):
             status='Pending'
         )
 
-        if user.role == 'Admin':
+        """ if user.role == 'Admin':
             # For admin, show requests made by users (non-admin)
             return base_queryset.filter(created_by__role='Agent')
         else:
             # For non-admin users, show requests made by admin
-            return base_queryset.filter(created_by__role='Admin')
+            return base_queryset.filter(created_by__role='Admin') """
+
+        return base_queryset

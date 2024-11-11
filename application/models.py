@@ -4,6 +4,8 @@ from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.utils import timezone
+from decimal import Decimal
+from datetime import datetime
 
 User = get_user_model()
 
@@ -56,11 +58,17 @@ class Application(models.Model):
         else:
             changes = self.get_changes()
             if changes:
-                ChangeRequest.objects.create(
-                    content_type=ContentType.objects.get_for_model(self),
-                    object_id=self.pk,
-                    changes=changes
-                )
+                # Remove status from changes if present
+                changes.pop('status', None)
+                
+                # Only create change request if there are other changes
+                if changes:
+                    ChangeRequest.objects.create(
+                        content_type=ContentType.objects.get_for_model(self),
+                        object_id=self.pk,
+                        changes=changes
+                    )
+            super().save(*args, **kwargs)
 
     def get_changes(self):
         if not self.pk:
@@ -81,16 +89,37 @@ class Application(models.Model):
 
     def approve_changes(self, change_request):
         if change_request.content_type == ContentType.objects.get_for_model(self) and change_request.object_id == self.pk:
+            # Get the fields being changed in current change request
+            changing_fields = set(change_request.changes.keys())
+            
+            # Reject only pending changes that modify the same fields
+            pending_changes = self.get_pending_changes().exclude(pk=change_request.pk)
+            for pending_change in pending_changes:
+                pending_fields = set(pending_change.changes.keys())
+                if pending_fields & changing_fields:  # If there's any intersection
+                    pending_change.status = 'Rejected'
+                    pending_change.save()
+            
+            # Apply the approved changes
             for field, value in change_request.changes.items():
-                setattr(self, field, value)
+                field_type = self._meta.get_field(field)
+                
+                # Handle date fields
+                if isinstance(field_type, models.DateField) and value:
+                    date_value = datetime.fromisoformat(value).date()
+                    setattr(self, field, date_value)
+                # Handle decimal fields
+                elif isinstance(field_type, models.DecimalField) and value:
+                    setattr(self, field, Decimal(str(value)))
+                # Handle other fields
+                else:
+                    setattr(self, field, value)
+            
             self.approved_version = change_request
             super().save()
             change_request.status = 'Approved'
             change_request.approved_at = timezone.now()
             change_request.save()
-            
-            # Reject other pending change requests
-            self.get_pending_changes().exclude(pk=change_request.pk).update(status='Rejected')
 
     def reject_changes(self, change_request):
         if change_request.content_type == ContentType.objects.get_for_model(self) and change_request.object_id == self.pk:
