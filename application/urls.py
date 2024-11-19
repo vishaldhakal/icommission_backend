@@ -2,6 +2,7 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
+    path('document-types/', views.get_document_types, name='document-types'),
     path('applications/', views.ApplicationListCreate.as_view(), name='application-list-create'),
     path('applications/<int:pk>/', views.ApplicationRetrieveUpdateDestroy.as_view(), name='application-detail'),
     path('applications/<int:application_id>/documents/', views.DocumentListCreate.as_view(), name='document-list-create'),

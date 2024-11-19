@@ -102,17 +102,21 @@ class Application(models.Model):
             
             # Apply the approved changes
             for field, value in change_request.changes.items():
+                if value is None:
+                    setattr(self, field, None)
+                    continue
+                
                 field_type = self._meta.get_field(field)
                 
-                # Handle date fields
-                if isinstance(field_type, models.DateField) and value:
+                if isinstance(field_type, models.DateField):
+                    # Parse ISO format date string
                     date_value = datetime.fromisoformat(value).date()
                     setattr(self, field, date_value)
-                # Handle decimal fields
-                elif isinstance(field_type, models.DecimalField) and value:
+                elif isinstance(field_type, models.DecimalField):
+                    # Convert string to Decimal
                     setattr(self, field, Decimal(str(value)))
-                # Handle other fields
                 else:
+                    # Handle other fields
                     setattr(self, field, value)
             
             self.approved_version = change_request

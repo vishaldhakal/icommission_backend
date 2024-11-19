@@ -40,7 +40,8 @@ class UserProfileUpdateView(generics.UpdateAPIView):
             'last_name', 'license_number', 'phone_number', 'role', 
             'deal_administrator_name', 'deal_administrator_email',
             't4a', 'void_cheque_or_direct_doposite_form',
-            'annual_commission_statement', 'deposit_cheque_or_receipt'
+            'annual_commission_statement', 'deposit_cheque_or_receipt',
+            'institution_id', 'transit_number', 'account_number'
         ]
         
         for field in allowed_fields:

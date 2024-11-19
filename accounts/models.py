@@ -26,6 +26,9 @@ class CustomUser(AbstractUser):
     void_cheque_or_direct_doposite_form = models.FileField(upload_to='void_cheque_or_direct_doposite_forms', null=True, blank=True)
     annual_commission_statement = models.FileField(upload_to='annual_commission_statements', null=True, blank=True)
     deposit_cheque_or_receipt = models.FileField(upload_to='deposit_cheque_or_receipts', null=True, blank=True)
+    institution_id = models.CharField(max_length=100, null=True, blank=True)
+    transit_number = models.CharField(max_length=100, null=True, blank=True)
+    account_number = models.CharField(max_length=100, null=True, blank=True)
 
 
     def __str__(self):

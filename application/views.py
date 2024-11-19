@@ -14,8 +14,15 @@ from .serializers import (
 )
 from django.contrib.contenttypes.models import ContentType
 from decimal import Decimal
+from rest_framework.decorators import api_view
+from django.db import models
 
 User = get_user_model()
+
+
+@api_view(['GET'])
+def get_document_types(request):
+    return Response([choice[0] for choice in Document.DOCUMENT_TYPES])
 
 class CustomPageNumberPagination(PageNumberPagination):
     page_size = 10
@@ -95,19 +102,23 @@ class ApplicationRetrieveUpdateDestroy(generics.RetrieveUpdateDestroyAPIView):
                 continue
                 
             old_value = getattr(instance, field)
+            field_type = instance._meta.get_field(field)
             
-            # Handle date fields
-            if hasattr(old_value, 'isoformat') or old_value is None:
-                if old_value != value:
-                    changes[field] = value.isoformat()
-            # Handle Decimal fields
-            elif isinstance(old_value, Decimal):
-                if old_value.compare(Decimal(str(value))) != 0:
-                    changes[field] = str(value)
-            # Handle other fields
-            elif old_value != value:
-                changes[field] = value if not isinstance(value, Decimal) else str(value)
-        
+            # Skip if values are equal
+            if old_value == value:
+                continue
+            
+            # Handle different field types
+            if isinstance(field_type, models.DateField):
+                # Convert date to ISO format string
+                changes[field] = value.isoformat() if value else None
+            elif isinstance(field_type, models.DecimalField):
+                # Convert Decimal to string
+                changes[field] = str(value) if value else None
+            else:
+                # Handle other fields
+                changes[field] = value
+
         if changes:
             ChangeRequest.objects.create(
                 content_object=instance,
