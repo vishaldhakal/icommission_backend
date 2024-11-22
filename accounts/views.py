@@ -7,6 +7,7 @@ from rest_framework.decorators import (
 )
 from .serializers import UserSerializer
 from rest_framework.permissions import IsAuthenticated
+from .serializers import CustomUserSerializer
 
 User = get_user_model()
 
@@ -63,3 +64,9 @@ def profile(request):
         user = request.user
         serializer = UserSerializer(user)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class UserList(generics.ListAPIView):
+    queryset = User.objects.all()
+    serializer_class = CustomUserSerializer
+    permission_classes = [IsAuthenticated]
