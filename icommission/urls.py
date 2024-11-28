@@ -7,9 +7,12 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/", include("affiliate.urls")),
     path("api/", include("blog.urls")),
-    path("api/",include("application.urls")),
+    path("api/", include("application.urls")),
     path("api/", include("accounts.urls")),
     path('api/', include('partner.urls')),
+    path('dj-rest-auth/', include('dj_rest_auth.urls')),
+    path('dj-rest-auth/registration/', include('dj_rest_auth.registration.urls')),
+    path('accounts/', include('allauth.urls')),
 ]
 
 if settings.DEBUG:
