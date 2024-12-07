@@ -6,8 +6,15 @@ from django.contrib.contenttypes.models import ContentType
 from django.utils import timezone
 from decimal import Decimal
 from datetime import datetime
+import json
 
 User = get_user_model()
+
+class DecimalEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, Decimal):
+            return str(obj)
+        return super().default(obj)
 
 class Application(models.Model):
     STATUS_CHOICES = [
@@ -63,10 +70,21 @@ class Application(models.Model):
                 
                 # Only create change request if there are other changes
                 if changes:
+                    # Get the user from the current request
+                    from django.contrib.admin.sites import site
+                    from django.core.handlers.wsgi import WSGIRequest
+                    request = None
+                    for thread_local in site._registry.values():
+                        if hasattr(thread_local, 'request'):
+                            request = thread_local.request
+                            break
+
+                    # Use custom JSON encoder for serializing changes
                     ChangeRequest.objects.create(
                         content_type=ContentType.objects.get_for_model(self),
                         object_id=self.pk,
-                        changes=changes
+                        changes=json.loads(json.dumps(changes, cls=DecimalEncoder)),
+                        created_by=request.user if request else None
                     )
             super().save(*args, **kwargs)
 
@@ -76,8 +94,14 @@ class Application(models.Model):
         old_instance = Application.objects.get(pk=self.pk)
         changes = {}
         for field in self._meta.fields:
-            if getattr(self, field.name) != getattr(old_instance, field.name):
-                changes[field.name] = getattr(self, field.name)
+            old_value = getattr(old_instance, field.name)
+            new_value = getattr(self, field.name)
+            if old_value != new_value:
+                # Convert Decimal to string before storing
+                if isinstance(new_value, Decimal):
+                    changes[field.name] = str(new_value)
+                else:
+                    changes[field.name] = new_value
         return changes
 
     def get_pending_changes(self):
