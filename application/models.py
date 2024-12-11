@@ -5,7 +5,7 @@ from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.utils import timezone
 from decimal import Decimal
-from datetime import datetime
+import datetime
 import json
 
 User = get_user_model()
@@ -65,94 +65,82 @@ class Application(models.Model):
         else:
             changes = self.get_changes()
             if changes:
-                # Remove status from changes if present
-                changes.pop('status', None)
+                # Get the user from the current request
+                from django.contrib.admin.sites import site
+                from django.contrib.auth import get_user_model
+                from threading import current_thread
                 
-                # Only create change request if there are other changes
-                if changes:
-                    # Get the user from the current request
-                    from django.contrib.admin.sites import site
-                    from django.core.handlers.wsgi import WSGIRequest
-                    request = None
+                request = None
+                thread = current_thread()
+                if hasattr(thread, 'request'):
+                    request = thread.request
+                else:
                     for thread_local in site._registry.values():
                         if hasattr(thread_local, 'request'):
                             request = thread_local.request
                             break
 
-                    # Use custom JSON encoder for serializing changes
+                User = get_user_model()
+                user = None
+                if request and hasattr(request, 'user'):
+                    user = request.user
+                else:
+                    user = User.objects.filter(is_superuser=True).first()
+
+                if user and changes:
                     ChangeRequest.objects.create(
                         content_type=ContentType.objects.get_for_model(self),
                         object_id=self.pk,
-                        changes=json.loads(json.dumps(changes, cls=DecimalEncoder)),
-                        created_by=request.user if request else None
+                        changes=changes,
+                        created_by=user,
+                        status='Applied'
                     )
             super().save(*args, **kwargs)
 
     def get_changes(self):
         if not self.pk:
             return {}
+        
         old_instance = Application.objects.get(pk=self.pk)
         changes = {}
-        for field in self._meta.fields:
-            old_value = getattr(old_instance, field.name)
-            new_value = getattr(self, field.name)
-            if old_value != new_value:
-                # Convert Decimal to string before storing
-                if isinstance(new_value, Decimal):
-                    changes[field.name] = str(new_value)
+        tracked_fields = [
+            'transaction_type', 'transaction_address', 'deal_commission_amount',
+            'purchase_commission_amount', 'advance_payout_amount', 'discount_fee_amount',
+            'advance_date', 'closing_date', 'status', 'transaction_count'
+        ]
+        
+        # Define choice fields
+        choice_fields = ['transaction_type', 'status', 'transaction_count']
+        
+        for field in tracked_fields:
+            old_value = getattr(old_instance, field)
+            new_value = getattr(self, field)
+            
+            # Skip if values are the same
+            if old_value == new_value:
+                continue
+            
+            # Handle different types of values
+            if field in choice_fields:
+                # Handle choice fields directly as strings
+                changes[field] = str(new_value) if new_value else None
+            elif isinstance(new_value, (int, float, str, bool)) or new_value is None:
+                changes[field] = new_value
+            elif isinstance(new_value, Decimal):
+                changes[field] = str(new_value)
+            elif isinstance(new_value, datetime.date):
+                changes[field] = new_value.isoformat() if new_value else None
+                old_value = old_value.isoformat() if old_value else None
+                # Only add to changes if the formatted values are different
+                if old_value != changes[field]:
+                    changes[field] = changes[field]
                 else:
-                    changes[field.name] = new_value
+                    del changes[field]
+            else:
+                # For any other types, convert to string
+                changes[field] = str(new_value) if new_value is not None else None
+            
         return changes
-
-    def get_pending_changes(self):
-        return ChangeRequest.objects.filter(
-            content_type=ContentType.objects.get_for_model(self),
-            object_id=self.pk,
-            status='Pending'
-        )
-
-    def approve_changes(self, change_request):
-        if change_request.content_type == ContentType.objects.get_for_model(self) and change_request.object_id == self.pk:
-            # Get the fields being changed in current change request
-            changing_fields = set(change_request.changes.keys())
-            
-            # Reject only pending changes that modify the same fields
-            pending_changes = self.get_pending_changes().exclude(pk=change_request.pk)
-            for pending_change in pending_changes:
-                pending_fields = set(pending_change.changes.keys())
-                if pending_fields & changing_fields:  # If there's any intersection
-                    pending_change.status = 'Rejected'
-                    pending_change.save()
-            
-            # Apply the approved changes
-            for field, value in change_request.changes.items():
-                if value is None:
-                    setattr(self, field, None)
-                    continue
-                
-                field_type = self._meta.get_field(field)
-                
-                if isinstance(field_type, models.DateField):
-                    # Parse ISO format date string
-                    date_value = datetime.fromisoformat(value).date()
-                    setattr(self, field, date_value)
-                elif isinstance(field_type, models.DecimalField):
-                    # Convert string to Decimal
-                    setattr(self, field, Decimal(str(value)))
-                else:
-                    # Handle other fields
-                    setattr(self, field, value)
-            
-            self.approved_version = change_request
-            super().save()
-            change_request.status = 'Approved'
-            change_request.approved_at = timezone.now()
-            change_request.save()
-
-    def reject_changes(self, change_request):
-        if change_request.content_type == ContentType.objects.get_for_model(self) and change_request.object_id == self.pk:
-            change_request.status = 'Rejected'
-            change_request.save()
 
     class Meta:
         ordering = ['-submitted_at']
@@ -232,9 +220,7 @@ class Note(models.Model):
 
 class ChangeRequest(models.Model):
     STATUS_CHOICES = [
-        ('Pending', 'Pending'),
-        ('Approved', 'Approved'),
-        ('Rejected', 'Rejected'),
+        ('Applied', 'Applied'),  # Simplified status - only tracking changes
     ]
 
     content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
@@ -244,12 +230,10 @@ class ChangeRequest(models.Model):
     changes = models.JSONField()
     created_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='change_requests_created')
     created_at = models.DateTimeField(auto_now_add=True)
-    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='Pending')
-    approved_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='change_requests_approved')
-    approved_at = models.DateTimeField(null=True, blank=True)
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='Applied')
 
     def __str__(self):
-        return f"Change request for {self.content_object} - {self.get_status_display()}"
+        return f"Change history for {self.content_object} at {self.created_at}"
 
     class Meta:
         ordering = ['-created_at']

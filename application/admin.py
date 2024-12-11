@@ -49,6 +49,6 @@ class ApplicationCommentAdmin(ModelAdmin):
 
 @admin.register(ChangeRequest)
 class ChangeRequestAdmin(ModelAdmin):
-    list_display = ('content_object', 'status', 'created_by', 'created_at', 'approved_by', 'approved_at')
-    list_filter = ('status',)
-    search_fields = ('created_by__username', 'approved_by__username')
+    list_display = ('content_object', 'created_by', 'created_at')
+    search_fields = ('created_by__username',)
+    readonly_fields = ('status',)
