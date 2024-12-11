@@ -31,7 +31,10 @@ class Application(models.Model):
         ('Resale', 'Resale'),
         ('Commercial', 'Commercial'),
         ('Pre-construction', 'Pre-construction'),
+        ('Line of Credit', 'Line of Credit'),
         ('Lease', 'Lease'),
+        ('Royalty Loan', 'Royalty Loan'),
+        ('Term Loan', 'Term Loan'),
     ]
 
     TRANSACTIONS= [

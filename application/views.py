@@ -131,7 +131,19 @@ def dashboard_analytics(request):
             count=Count('id'),
             amount=Coalesce(Sum('purchase_commission_amount'), Decimal('0'))
         ),
-        'Line of Credit': applications.filter(transaction_type='Lease').aggregate(
+        'Line of Credit': applications.filter(transaction_type='Line of Credit').aggregate(
+            count=Count('id'),
+            amount=Coalesce(Sum('purchase_commission_amount'), Decimal('0'))
+        ),
+        'Lease': applications.filter(transaction_type='Lease').aggregate(
+            count=Count('id'),
+            amount=Coalesce(Sum('purchase_commission_amount'), Decimal('0'))
+        ),
+        'Royalty Loan': applications.filter(transaction_type='Royalty Loan').aggregate(
+            count=Count('id'),
+            amount=Coalesce(Sum('purchase_commission_amount'), Decimal('0'))
+        ),
+        'Term Loan': applications.filter(transaction_type='Term Loan').aggregate(
             count=Count('id'),
             amount=Coalesce(Sum('purchase_commission_amount'), Decimal('0'))
         ),
