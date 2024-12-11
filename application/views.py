@@ -111,7 +111,7 @@ def dashboard_analytics(request):
     
     # Calculate total income realized (from closed deals)
     total_income = applications.filter(status='Closed').aggregate(
-        total=Coalesce(Sum('purchase_commission_amount'), Decimal('0'))
+        total=Coalesce(Sum('discount_fee_amount'), Decimal('0'))
     )['total']
     
     # Calculate total repayments received
