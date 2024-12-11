@@ -20,6 +20,7 @@ from django.db.models import Sum, Count, Case, When, F, DecimalField
 from django.db.models.functions import Coalesce
 from datetime import datetime
 from django.db.models.functions import ExtractDay
+from django.db.models import Avg
 
 User = get_user_model()
 
@@ -101,6 +102,12 @@ def dashboard_analytics(request):
             Decimal('0')
         )
     )['ratio']
+
+    average_repayment_term = applications.annotate(
+        days_between=ExtractDay(F('closing_date') - F('advance_date'))
+    ).aggregate(
+        avg_days=Avg('days_between')
+    )['avg_days']
     
     # Calculate total income realized (from closed deals)
     total_income = applications.filter(status='Closed').aggregate(
@@ -142,7 +149,7 @@ def dashboard_analytics(request):
         'key_metrics': {
             'total_purchased_commission_amount': float(total_commission),
             'total_purchase_price': float(total_advance),
-            'average_repayment_term': 120,  # This could be calculated based on your business logic
+            'average_repayment_term': float(average_repayment_term),
             'total_discount_fee': float(total_discount_fee),
             'average_apr': float(avg_apr),
             'total_agent_commission': float(total_agent_commission),
