@@ -36,7 +36,7 @@ def dashboard_analytics(request):
     
     # Calculate key metrics
     total_commission = applications.aggregate(
-        total=Coalesce(Sum('deal_commission_amount'), Decimal('0'))
+        total=Coalesce(Sum('purchase_commission_amount'), Decimal('0'))
     )['total']
     
     total_advance = applications.aggregate(
@@ -104,7 +104,7 @@ def dashboard_analytics(request):
     
     # Calculate total income realized (from closed deals)
     total_income = applications.filter(status='Closed').aggregate(
-        total=Coalesce(Sum('deal_commission_amount'), Decimal('0'))
+        total=Coalesce(Sum('purchase_commission_amount'), Decimal('0'))
     )['total']
     
     # Calculate total repayments received
@@ -114,19 +114,19 @@ def dashboard_analytics(request):
     portfolio_snapshot = {
         'Pre-construction': applications.filter(transaction_type='Pre-construction').aggregate(
             count=Count('id'),
-            amount=Coalesce(Sum('deal_commission_amount'), Decimal('0'))
+            amount=Coalesce(Sum('purchase_commission_amount'), Decimal('0'))
         ),
         'Commercial': applications.filter(transaction_type='Commercial').aggregate(
             count=Count('id'),
-            amount=Coalesce(Sum('deal_commission_amount'), Decimal('0'))
+            amount=Coalesce(Sum('purchase_commission_amount'), Decimal('0'))
         ),
         'Resale': applications.filter(transaction_type='Resale').aggregate(
             count=Count('id'),
-            amount=Coalesce(Sum('deal_commission_amount'), Decimal('0'))
+            amount=Coalesce(Sum('purchase_commission_amount'), Decimal('0'))
         ),
         'Line of Credit': applications.filter(transaction_type='Lease').aggregate(
             count=Count('id'),
-            amount=Coalesce(Sum('deal_commission_amount'), Decimal('0'))
+            amount=Coalesce(Sum('purchase_commission_amount'), Decimal('0'))
         ),
     }
     
