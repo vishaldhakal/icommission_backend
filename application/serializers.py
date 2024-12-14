@@ -2,6 +2,9 @@ from rest_framework import serializers
 from .models import Application, Document, Note, ApplicationComment, ChangeRequest, ContentType
 from accounts.serializers import UserSmallestSerializer, UserSmallSerializer
 from decimal import Decimal
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
 
 class NoteSerializer(serializers.ModelSerializer):
     class Meta:
@@ -111,3 +114,44 @@ class ApplicationCommentSerializer(serializers.ModelSerializer):
     class Meta:
         model = ApplicationComment
         fields = ['id', 'comment', 'comment_type', 'created_at']
+
+class ApplicationAnalyticsSerializer(serializers.Serializer):
+    total_purchase_commission = serializers.DecimalField(max_digits=15, decimal_places=2)
+    total_advance_payout = serializers.DecimalField(max_digits=15, decimal_places=2)
+    average_term_days = serializers.DecimalField(max_digits=15, decimal_places=2)
+    total_discount_fee = serializers.DecimalField(max_digits=15, decimal_places=2)
+    average_rate = serializers.DecimalField(max_digits=15, decimal_places=2)
+    total_commission_requested = serializers.DecimalField(max_digits=15, decimal_places=2)
+    total_closed_applications = serializers.IntegerField()
+    transaction_type_breakdown = serializers.DictField(
+        child=serializers.DictField(
+            child=serializers.DecimalField(max_digits=15, decimal_places=2)
+        )
+    )
+
+class AdminApplicationCreateSerializer(serializers.ModelSerializer):
+    user = serializers.PrimaryKeyRelatedField(
+        queryset=User.objects.filter(is_active=True)
+    )
+    
+    class Meta:
+        model = Application
+        fields = [
+            'user', 'status', 'transaction_type', 'transaction_address',
+            'deal_commission_amount', 'purchase_commission_amount',
+            'advance_payout_amount', 'discount_fee_amount', 'advance_date',
+            'closing_date', 'transaction_count', 'commission_amount_requested'
+        ]
+
+    def validate_user(self, value):
+        if not value.is_active:
+            raise serializers.ValidationError("Selected user is not active")
+        if value.role not in ['Agent', 'Broker']:
+            raise serializers.ValidationError("Selected user must be an Agent or Broker")
+        return value
+
+    def create(self, validated_data):
+        # Ensure user is included in the creation
+        if 'user' not in validated_data:
+            raise serializers.ValidationError({"user": "User field is required"})
+        return super().create(validated_data)

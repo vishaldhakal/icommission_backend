@@ -10,7 +10,7 @@ from .models import Application, Document, Note, ApplicationComment, ChangeReque
 from .serializers import (
     ApplicationSerializer, DocumentSerializer, NoteSerializer, 
     ApplicationCreateSerializer, ApplicationListSerializer, 
-    ApplicationCommentSerializer, ChangeRequestSerializer
+    ApplicationCommentSerializer, ChangeRequestSerializer, AdminApplicationCreateSerializer
 )
 from django.contrib.contenttypes.models import ContentType
 from decimal import Decimal
@@ -48,42 +48,32 @@ def dashboard_analytics(request):
         total=Coalesce(Sum('discount_fee_amount'), Decimal('0'))
     )['total']
     
-    # Calculate average APR
-    applications_with_dates = applications.exclude(
-        closing_date=None
-    ).exclude(
-        advance_date=None
-    ).exclude(
-        purchase_commission_amount=None
-    ).exclude(
-        discount_fee_amount=None
-    ).exclude(
-        purchase_commission_amount=0
-    )
+    # Calculate average APR and term days in Python
+    valid_applications = [
+        app for app in applications 
+        if app.closing_date and app.advance_date and app.purchase_commission_amount 
+        and app.discount_fee_amount and app.purchase_commission_amount != 0
+    ]
 
+    total_days = Decimal('0')
     apr_values = []
-    for app in applications_with_dates:
-        try:
-            # Calculate days between closing and advance date
-            days_between = (app.closing_date - app.advance_date).days
-            if days_between > 0:  # Only calculate if days is positive
-                # Calculate APR for this application
-                apr = (
-                    (app.discount_fee_amount / app.purchase_commission_amount) 
-                    / days_between 
-                    * 365 
-                    * 100  # Convert to percentage
-                )
-                apr_values.append(apr)
-        except (ZeroDivisionError, AttributeError):
-            continue
+    
+    for app in valid_applications:
+        days_between = Decimal(str((app.closing_date - app.advance_date).days))
+        total_days += days_between
+        
+        if days_between > 0:
+            apr = (
+                (app.discount_fee_amount / app.purchase_commission_amount) 
+                / days_between 
+                * Decimal('365') 
+                * Decimal('100')
+            )
+            apr_values.append(apr)
 
-    # Calculate average APR
-    avg_apr = (
-        sum(apr_values) / len(apr_values) 
-        if apr_values 
-        else 0
-    )
+    # Calculate averages
+    avg_term_days = total_days / Decimal(str(len(valid_applications))) if valid_applications else Decimal('0')
+    avg_apr = sum(apr_values) / Decimal(str(len(apr_values))) if apr_values else Decimal('0')
     
     # Calculate total agent commission
     total_agent_commission = applications.aggregate(
@@ -91,23 +81,18 @@ def dashboard_analytics(request):
     )['total']
     
     # Calculate average advance ratio
-    applications_with_ratio = applications.exclude(
-        deal_commission_amount=None
-    ).exclude(deal_commission_amount=0)
+    valid_ratio_apps = [
+        app for app in applications 
+        if app.deal_commission_amount and app.deal_commission_amount != 0
+    ]
     
-    total_ratio = applications_with_ratio.aggregate(
-        ratio=Coalesce(
-            Sum(F('purchase_commission_amount') * 100.0 / F('deal_commission_amount'), 
-                output_field=DecimalField()) / Count('id'),
-            Decimal('0')
-        )
-    )['ratio']
-
-    average_repayment_term = applications.annotate(
-        days_between=ExtractDay(F('closing_date') - F('advance_date'))
-    ).aggregate(
-        avg_days=Avg('days_between')
-    )['avg_days']
+    total_ratio = Decimal('0')
+    if valid_ratio_apps:
+        ratios = [
+            (app.purchase_commission_amount * Decimal('100') / app.deal_commission_amount)
+            for app in valid_ratio_apps
+        ]
+        total_ratio = sum(ratios) / Decimal(str(len(ratios)))
     
     # Calculate total income realized (from closed deals)
     total_income = applications.filter(status='Closed').aggregate(
@@ -118,50 +103,34 @@ def dashboard_analytics(request):
     total_repayments = applications.filter(status='Closed').count()
     
     # Calculate portfolio snapshot
-    portfolio_snapshot = {
-        'Pre-construction': applications.filter(transaction_type='Pre-construction').aggregate(
-            count=Count('id'),
-            amount=Coalesce(Sum('purchase_commission_amount'), Decimal('0'))
-        ),
-        'Commercial': applications.filter(transaction_type='Commercial').aggregate(
-            count=Count('id'),
-            amount=Coalesce(Sum('purchase_commission_amount'), Decimal('0'))
-        ),
-        'Resale': applications.filter(transaction_type='Resale').aggregate(
-            count=Count('id'),
-            amount=Coalesce(Sum('purchase_commission_amount'), Decimal('0'))
-        ),
-        'Line of Credit': applications.filter(transaction_type='Line of Credit').aggregate(
-            count=Count('id'),
-            amount=Coalesce(Sum('purchase_commission_amount'), Decimal('0'))
-        ),
-        'Lease': applications.filter(transaction_type='Lease').aggregate(
-            count=Count('id'),
-            amount=Coalesce(Sum('purchase_commission_amount'), Decimal('0'))
-        ),
-        'Royalty Loan': applications.filter(transaction_type='Royalty Loan').aggregate(
-            count=Count('id'),
-            amount=Coalesce(Sum('purchase_commission_amount'), Decimal('0'))
-        ),
-        'Term Loan': applications.filter(transaction_type='Term Loan').aggregate(
-            count=Count('id'),
-            amount=Coalesce(Sum('purchase_commission_amount'), Decimal('0'))
-        ),
-    }
+    portfolio_snapshot = {}
+    for transaction_type, _ in Application.TRANSACTION_TYPES:
+        type_apps = applications.filter(transaction_type=transaction_type)
+        portfolio_snapshot[transaction_type] = {
+            'count': type_apps.count(),
+            'amount': type_apps.aggregate(
+                total=Coalesce(Sum('purchase_commission_amount'), Decimal('0'))
+            )['total']
+        }
     
     # Calculate percentages for portfolio snapshot
     total_amount = sum(item['amount'] for item in portfolio_snapshot.values())
     for key in portfolio_snapshot:
         if total_amount > 0:
-            portfolio_snapshot[key]['percentage'] = (portfolio_snapshot[key]['amount'] / total_amount) * 100
+            portfolio_snapshot[key]['percentage'] = (
+                portfolio_snapshot[key]['amount'] * Decimal('100') / total_amount
+            )
         else:
-            portfolio_snapshot[key]['percentage'] = 0
+            portfolio_snapshot[key]['percentage'] = Decimal('0')
+        # Convert to float for JSON serialization
+        portfolio_snapshot[key]['amount'] = float(portfolio_snapshot[key]['amount'])
+        portfolio_snapshot[key]['percentage'] = float(portfolio_snapshot[key]['percentage'])
 
     return Response({
         'key_metrics': {
             'total_purchased_commission_amount': float(total_commission),
             'total_purchase_price': float(total_advance),
-            'average_repayment_term': float(average_repayment_term),
+            'average_repayment_term': float(avg_term_days),
             'total_discount_fee': float(total_discount_fee),
             'average_apr': float(avg_apr),
             'total_agent_commission': float(total_agent_commission),
@@ -172,20 +141,102 @@ def dashboard_analytics(request):
         'portfolio_snapshot': portfolio_snapshot
     })
 
+@api_view(['GET'])
+def get_application_analytics(request):
+    applications = Application.objects.all()
+    closed_applications = applications.filter(status='Closed')
+    
+    # Calculate metrics in Python instead of database
+    def calculate_term_days(app):
+        if app.closing_date and app.advance_date:
+            return (app.closing_date - app.advance_date).days
+        return 0
+
+    def calculate_discount_fee(app):
+        if app.purchase_commission_amount and app.advance_payout_amount:
+            return float(app.purchase_commission_amount - app.advance_payout_amount)
+        return 0
+
+    def calculate_rate(app):
+        term_days = calculate_term_days(app)
+        discount_fee = calculate_discount_fee(app)
+        if term_days > 0 and app.purchase_commission_amount and float(app.purchase_commission_amount) > 0:
+            return float((discount_fee / float(app.purchase_commission_amount) / term_days * 365) * 100)
+        return 0
+
+    # Calculate aggregates
+    total_apps = len(applications)
+    if total_apps > 0:
+        total_term_days = sum(calculate_term_days(app) for app in applications)
+        avg_term_days = total_term_days / total_apps
+        
+        total_discount_fee = sum(calculate_discount_fee(app) for app in applications)
+        total_rates = sum(calculate_rate(app) for app in applications)
+        avg_rate = total_rates / total_apps
+    else:
+        avg_term_days = 0
+        total_discount_fee = 0
+        avg_rate = 0
+
+    analytics_data = {
+        'total_purchase_commission': float(applications.aggregate(
+            total=Sum('purchase_commission_amount')
+        )['total'] or 0),
+        'total_advance_payout': float(applications.aggregate(
+            total=Sum('advance_payout_amount')
+        )['total'] or 0),
+        'average_term_days': round(float(avg_term_days), 2),
+        'total_discount_fee': float(total_discount_fee),
+        'average_rate': round(float(avg_rate), 2),
+        'total_commission_requested': float(applications.aggregate(
+            total=Sum('commission_amount_requested')
+        )['total'] or 0),
+        'total_closed_applications': closed_applications.count(),
+        'transaction_type_breakdown': get_transaction_type_breakdown(applications)
+    }
+    
+    return Response(analytics_data)
+
+def get_transaction_type_breakdown(applications):
+    breakdown = {}
+    total_amount = float(applications.aggregate(
+        total=Sum('purchase_commission_amount')
+    )['total'] or 0)
+
+    for transaction_type in Application.TRANSACTION_TYPES:
+        type_apps = applications.filter(transaction_type=transaction_type[0])
+        type_amount = float(type_apps.aggregate(
+            total=Sum('purchase_commission_amount')
+        )['total'] or 0)
+        
+        ratio = (type_amount / total_amount * 100) if total_amount > 0 else 0
+        
+        breakdown[transaction_type[0]] = {
+            'amount': type_amount,
+            'ratio': round(ratio, 2)
+        }
+    
+    return breakdown
+
 class CustomPageNumberPagination(PageNumberPagination):
     page_size = 100
     page_size_query_param = 'page_size'
     max_page_size = 100
 
 class ApplicationListCreate(generics.ListCreateAPIView):
-    queryset = Application.objects.all()
-    serializer_class = ApplicationCreateSerializer
     permission_classes = [IsAuthenticated]
     pagination_class = CustomPageNumberPagination
 
+    def get_serializer_class(self):
+        if self.request.user.role == 'Admin' and self.request.method == 'POST':
+            return AdminApplicationCreateSerializer
+        elif self.request.method == 'POST':
+            return ApplicationCreateSerializer
+        return ApplicationListSerializer
+
     def get_queryset(self):
         user = self.request.user
-        queryset = Application.objects.all() if user.role == 'Admin' else Application.objects.filter(user=user) if user.role == 'Agent' else Application.objects.none()
+        queryset = Application.objects.all() if user.role == 'Admin' else Application.objects.filter(user=user)
 
         # Filter by closing date
         closing_date_from = self.request.query_params.get('closing_date_from')
@@ -196,39 +247,39 @@ class ApplicationListCreate(generics.ListCreateAPIView):
         if closing_date_to:
             queryset = queryset.filter(closing_date__lte=closing_date_to)
 
-        return queryset
-    
-    def list(self, request, *args, **kwargs):
-        queryset = self.get_queryset()
-        page = self.paginate_queryset(queryset)
-        if page is not None:
-            serializer = ApplicationListSerializer(page, many=True)
-            return self.get_paginated_response(serializer.data)
-        serializer = ApplicationListSerializer(queryset, many=True)
-        return Response(serializer.data)
-    
+        return queryset.order_by('-submitted_at')
+
+    def perform_create(self, serializer):
+        data = self.request.data.copy()
+        if self.request.user.role != 'Admin':
+            # For non-admin users, force their own user ID
+            data['user'] = self.request.user.id
+        serializer.save()
+
     def create(self, request, *args, **kwargs):
         # Create a mutable copy of the request data
         data = request.data.copy()
-        user = request.user
-        data['user'] = user.id
+        
+        # If not admin, force the user ID to be the current user
+        if request.user.role != 'Admin':
+            data['user'] = request.user.id
         
         serializer = self.get_serializer(data=data)
         serializer.is_valid(raise_exception=True)
-        self.perform_create(serializer)
+        application = serializer.save()  # Save and get the application instance
         headers = self.get_success_headers(serializer.data)
         
-        # Handle documents
-        documents = data.pop('documents', [])
-        document_types = data.pop('document_types', [])
-        application = Application.objects.get(pk=serializer.data['id'])
+        # Handle documents if they exist
+        documents = request.FILES.getlist('documents', [])
+        document_types = request.POST.getlist('document_types', [])
         
         for index, document in enumerate(documents):
-            Document.objects.create(
-                application=application, 
-                file=document, 
-                document_type=document_types[index]
-            )
+            if index < len(document_types):
+                Document.objects.create(
+                    application=application,
+                    file=document,
+                    document_type=document_types[index]
+                )
             
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
