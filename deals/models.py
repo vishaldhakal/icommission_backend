@@ -11,6 +11,8 @@ class DealType(models.TextChoices):
     LINE_OF_CREDIT = 'Line of Credit', 'Line of Credit'
     ROYALTY_LOAN = 'Royalty Loan', 'Royalty Loan'
     TERM_LOAN = 'Term Loan', 'Term Loan'
+    BRIDGE_LOAN_PRIVATE = 'Bridge Loan (Private)', 'Bridge Loan (Private)'
+
 
 class DealCategory(models.TextChoices):
     SINGLE = 'Single', 'Single'
@@ -21,19 +23,19 @@ class DealStatus(models.TextChoices):
     CLOSED = 'Closed', 'Closed'
 
 class Deal(models.Model):
-    file = models.CharField(max_length=100, unique=True, db_index=True)
+    file = models.CharField(max_length=255, unique=True, db_index=True)
     date = models.DateField(db_index=True)
     category = models.CharField(
-        max_length=20,
+        max_length=255,
         choices=DealCategory.choices,
         default=DealCategory.SINGLE,
         db_index=True
     )
     transaction_address = models.CharField(max_length=500)
-    name = models.CharField(max_length=100, db_index=True)
-    company = models.CharField(max_length=100, db_index=True)
+    name = models.CharField(max_length=255, db_index=True)
+    company = models.CharField(max_length=255, db_index=True)
     type = models.CharField(
-        max_length=20,
+        max_length=255,
         choices=DealType.choices,
         db_index=True
     )
@@ -56,7 +58,7 @@ class Deal(models.Model):
     )
     internal_notes = models.TextField(blank=True)
     status = models.CharField(
-        max_length=20,
+        max_length=255,
         choices=DealStatus.choices,
         default=DealStatus.OPEN,
         db_index=True
