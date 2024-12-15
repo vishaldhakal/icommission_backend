@@ -13,7 +13,6 @@ class DealType(models.TextChoices):
     TERM_LOAN = 'Term Loan', 'Term Loan'
     BRIDGE_LOAN_PRIVATE = 'Bridge Loan (Private)', 'Bridge Loan (Private)'
 
-
 class DealCategory(models.TextChoices):
     SINGLE = 'Single', 'Single'
     MULTIPLE = 'Multiple', 'Multiple'
@@ -66,28 +65,25 @@ class Deal(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    @property
-    def term_days(self):
+    def calculate_term_days(self):
         return (self.closing_date - self.date).days if self.closing_date and self.date else 0
 
-    @property
-    def discount_fee(self):
+    def calculate_discount_fee(self):
         return float(self.purchased_commission_amount - self.purchase_price)
 
-    @property
-    def rate(self):
-        if self.term_days > 0 and self.purchased_commission_amount:
-            return float((self.discount_fee / float(self.purchased_commission_amount) / self.term_days * 365) * 100)
+    def calculate_rate(self):
+        term_days = self.calculate_term_days()
+        if term_days > 0 and self.purchased_commission_amount:
+            discount_fee = self.calculate_discount_fee()
+            return float((discount_fee / float(self.purchased_commission_amount) / term_days * 365) * 100)
         return 0
 
-    @property
-    def advance_ratio(self):
+    def calculate_advance_ratio(self):
         if self.agent_commission and float(self.agent_commission) > 0:
             return float(self.purchased_commission_amount / self.agent_commission)
         return 0
 
-    @property
-    def countdown(self):
+    def calculate_countdown(self):
         if self.closing_date:
             return (self.closing_date - timezone.now().date()).days
         return 0

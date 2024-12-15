@@ -1,7 +1,9 @@
 from rest_framework import generics, status
 from rest_framework.decorators import api_view, parser_classes
 from rest_framework.response import Response
-from django.db.models import Sum, Avg, Count
+from django.db.models import Sum, Avg, Count, F, ExpressionWrapper, DecimalField, IntegerField, Case, When, Value, Q, DateField
+from django.db.models.functions import Cast
+from django.utils import timezone
 from .models import Deal, PortfolioSettings, DealType
 from .serializers import (
     DealSerializer, 
@@ -16,7 +18,6 @@ from django_filters import rest_framework as filters
 from rest_framework.filters import SearchFilter, OrderingFilter
 from django.db import transaction
 from rest_framework.parsers import MultiPartParser
-from django.db.models import Q
 
 class DealFilter(filters.FilterSet):
     date_from = filters.DateFilter(field_name='date', lookup_expr='gte')
@@ -56,12 +57,48 @@ class DealFilter(filters.FilterSet):
         fields = ['date_from', 'date_to', 'type', 'status', 'category', 'search']
 
 class DealListCreateView(generics.ListCreateAPIView):
-    queryset = Deal.objects.all()
     serializer_class = DealSerializer
     filter_backends = [filters.DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_class = DealFilter
     search_fields = ['file', 'name', 'company', 'transaction_address']
-    ordering_fields = ['date', 'purchased_commission_amount', 'purchase_price']
+    ordering_fields = [
+        'file', 'purchased_commission_amount', 'purchase_price',
+        'closing_date', 'agent_commission', 'name', 'company', 
+        'type', 'status', 'date'
+    ]
+
+    def get_queryset(self):
+        queryset = Deal.objects.all()
+        ordering = self.request.query_params.get('ordering', None)
+        
+        if ordering:
+            if ordering.startswith('-'):
+                field = ordering[1:]
+                desc = True
+            else:
+                field = ordering
+                desc = False
+
+            # Handle computed field sorting
+            if field in ['term_days', 'discount_fee', 'rate', 'advance_ratio', 'countdown']:
+                # Sort by the base fields that affect the computed values
+                if field == 'term_days':
+                    queryset = queryset.order_by(f'{"-" if desc else ""}closing_date')
+                elif field in ['discount_fee', 'rate']:
+                    queryset = queryset.order_by(f'{"-" if desc else ""}purchased_commission_amount')
+                elif field == 'advance_ratio':
+                    queryset = queryset.order_by(f'{"-" if desc else ""}agent_commission')
+                elif field == 'countdown':
+                    queryset = queryset.order_by(f'{"-" if desc else ""}closing_date')
+            else:
+                queryset = queryset.order_by(ordering)
+
+        return queryset
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context['request'] = self.request
+        return context
 
 class DealRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Deal.objects.all()
@@ -149,7 +186,7 @@ def import_deals(request):
                             'purchase_price': purchase_price,
                             'closing_date': closing_date,
                             'agent_commission': agent_commission,
-                            'status': status_value.upper(),
+                            'status': status_value,
                             'internal_notes': internal_notes
                         }
                     )
@@ -226,30 +263,56 @@ def export_deals(request):
 
 @api_view(['GET'])
 def get_analytics(request):
-    deals = Deal.objects.all()
-    closed_deals = deals.filter(status='CLOSED')
+    # Get all deals and filter for open/closed
+    all_deals = Deal.objects.all()
+    open_deals = all_deals.filter(status='Open')
+    closed_deals = all_deals.filter(status='Closed')
     
-    # Calculate average term days
-    total_term_days = sum(deal.term_days for deal in deals)
-    avg_term_days = float(total_term_days / len(deals)) if deals else 0
+    # Calculate analytics using calculation methods
+    # Total portfolio value should only include open deals
+    total_purchased_commission = float(open_deals.aggregate(
+        total=Sum('purchased_commission_amount')
+    )['total'] or 0)
+    
+    # Other calculations can include all deals
+    total_purchase_price = float(all_deals.aggregate(
+        total=Sum('purchase_price')
+    )['total'] or 0)
+    
+    # Calculate average term days (for all deals) and round to nearest integer
+    total_term_days = sum(deal.calculate_term_days() for deal in all_deals)
+    avg_term_days = round(float(total_term_days / len(all_deals))) if all_deals else 0
+    
+    # Calculate total discount fee (for all deals)
+    total_discount_fee = sum(deal.calculate_discount_fee() for deal in all_deals)
+    
+    # Calculate average APR (for all deals)
+    total_rate = sum(deal.calculate_rate() for deal in all_deals)
+    avg_rate = float(total_rate / len(all_deals)) if all_deals else 0
+    
+    # Calculate total agent commission (for all deals)
+    total_agent_commission = float(all_deals.aggregate(
+        total=Sum('agent_commission')
+    )['total'] or 0)
+    
+    # Calculate average advance ratio (for all deals)
+    total_advance_ratio = sum(deal.calculate_advance_ratio() for deal in all_deals)
+    avg_advance_ratio = float(total_advance_ratio / len(all_deals)) if all_deals else 0
+    
+    # Calculate total income realized (from closed deals only)
+    total_income_realized = sum(deal.calculate_discount_fee() for deal in closed_deals)
     
     analytics_data = {
-        'total_purchased_commission': float(deals.aggregate(
-            total=Sum('purchased_commission_amount')
-        )['total'] or 0),
-        'total_purchase_price': float(deals.aggregate(
-            total=Sum('purchase_price')
-        )['total'] or 0),
-        'average_repayment_term': round(float(avg_term_days), 2),
-        'total_discount_fee': float(sum(deal.discount_fee for deal in deals)),
-        'average_apr': float(sum(deal.rate for deal in deals) / len(deals) if deals else 0),
-        'total_agent_commission': float(deals.aggregate(
-            total=Sum('agent_commission')
-        )['total'] or 0),
-        'average_advance_ratio': float(sum(deal.advance_ratio for deal in deals) / len(deals) if deals else 0),
-        'total_income_realized': float(sum(deal.discount_fee for deal in closed_deals)),
+        'total_purchased_commission': total_purchased_commission,  # Only open deals
+        'total_purchase_price': total_purchase_price,
+        'average_repayment_term': avg_term_days,  # Now rounded to whole number
+        'total_discount_fee': total_discount_fee,
+        'average_apr': avg_rate,
+        'total_agent_commission': total_agent_commission,
+        'average_advance_ratio': avg_advance_ratio,
+        'total_income_realized': total_income_realized,
         'total_repayments_received': closed_deals.count(),
-        'portfolio_breakdown': get_portfolio_breakdown(deals)
+        'portfolio_breakdown': get_portfolio_breakdown(open_deals)  # Only open deals
     }
     
     serializer = DealAnalyticsSerializer(analytics_data)
