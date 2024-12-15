@@ -4,7 +4,7 @@ from rest_framework_simplejwt.views import (
     TokenRefreshView,
     TokenVerifyView,
 )
-from .views import UserRegistrationView, profile, UserProfileUpdateView, UserList
+from .views import UserRegistrationView, profile, UserProfileUpdateView, UserList, UserCreateUpdateDeleteView, BrokerageListCreateView, BrokerageDetailView, UserListCreateView
 
 urlpatterns = [
     path('token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
@@ -14,4 +14,8 @@ urlpatterns = [
     path('user/', profile, name='profile'),
     path('users-list/', UserList.as_view(), name='users-list'),
     path('user/update/', UserProfileUpdateView.as_view(), name='user-profile-update'),
+    path('users/', UserListCreateView.as_view(), name='user-create-list'),
+    path('users/<int:pk>/', UserCreateUpdateDeleteView.as_view(), name='user-detail'),
+    path('brokerages/', BrokerageListCreateView.as_view(), name='brokerage-list-create'),
+    path('brokerages/<int:pk>/', BrokerageDetailView.as_view(), name='brokerage-detail'),
 ]
