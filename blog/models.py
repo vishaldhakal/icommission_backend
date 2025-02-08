@@ -17,7 +17,7 @@ class Post(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     title = models.CharField(max_length=500)
-    slug = models.SlugField(unique=True, blank=True)
+    slug = models.SlugField(unique=True, blank=True,max_length=500)
     blog_duration_to_read = models.CharField(max_length=100,blank=True)
     category = models.ForeignKey(Category, on_delete=models.CASCADE)
     thumbnail_image = models.FileField()
